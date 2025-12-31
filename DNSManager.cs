@@ -174,7 +174,7 @@ namespace DNSManager
                     Console.Clear();
                     Console.ForegroundColor = ConsoleColor.Cyan;
                     Console.WriteLine("========================================");
-                    Console.WriteLine("    DNS Manager");
+                    Console.WriteLine("    DNS Manager v1.0.0");
                     Console.WriteLine("    Управление DNS серверами");
                     Console.WriteLine("    Best for: Roblox, Telegram, Discord, YouTube");
                     Console.WriteLine("    Works with: Wired (Ethernet) and Wi-Fi");
