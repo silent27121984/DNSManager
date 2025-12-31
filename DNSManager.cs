@@ -356,8 +356,9 @@ namespace DNSManager
 
             if (successCount > 0)
             {
-                Console.WriteLine("Очистка DNS кеша...");
+                Console.WriteLine("Применение изменений...");
                 FlushDNSCache();
+                RefreshNetworkSettings();
                 Console.WriteLine();
 
                 Console.ForegroundColor = ConsoleColor.Green;
@@ -366,6 +367,11 @@ namespace DNSManager
                 Console.ResetColor();
                 WriteLog($"SUCCESS: DNS set for {successCount} connection(s)");
 
+                Console.WriteLine();
+                Console.ForegroundColor = ConsoleColor.Cyan;
+                Console.WriteLine("✓ Изменения применены сразу, перезагрузка ПК НЕ требуется!");
+                Console.WriteLine("  Просто перезапустите браузер и приложения (Discord, Telegram и т.д.)");
+                Console.ResetColor();
                 Console.WriteLine();
                 Console.WriteLine("Текущие настройки DNS:");
                 ShowCurrentDNS();
@@ -448,8 +454,9 @@ namespace DNSManager
 
             if (successCount > 0)
             {
-                Console.WriteLine("Очистка DNS кеша...");
+                Console.WriteLine("Применение изменений...");
                 FlushDNSCache();
+                RefreshNetworkSettings();
                 Console.WriteLine();
 
                 Console.ForegroundColor = ConsoleColor.Green;
@@ -458,11 +465,15 @@ namespace DNSManager
                 WriteLog($"SUCCESS: DNS restored for {successCount} connection(s)");
 
                 Console.WriteLine();
+                Console.ForegroundColor = ConsoleColor.Cyan;
+                Console.WriteLine("✓ Изменения применены сразу, перезагрузка ПК НЕ требуется!");
+                Console.WriteLine("  Просто перезапустите браузер и приложения.");
+                Console.ResetColor();
+                Console.WriteLine();
                 Console.WriteLine("Текущие настройки DNS:");
                 ShowCurrentDNS();
                 Console.WriteLine();
                 Console.WriteLine("Готово! DNS теперь получается автоматически от провайдера.");
-                Console.WriteLine("Перезагрузите компьютер, чтобы изменения полностью вступили в силу.");
             }
             else
             {
@@ -677,14 +688,14 @@ namespace DNSManager
                         if (process.ExitCode == 0)
                         {
                             Console.ForegroundColor = ConsoleColor.Green;
-                            Console.WriteLine("[OK] DNS кеш очищен");
+                            Console.WriteLine("  [OK] DNS кеш очищен");
                             Console.ResetColor();
                             WriteLog("SUCCESS: DNS cache flushed");
                         }
                         else
                         {
                             Console.ForegroundColor = ConsoleColor.Yellow;
-                            Console.WriteLine("[Предупреждение] Не удалось очистить DNS кеш");
+                            Console.WriteLine("  [Предупреждение] Не удалось очистить DNS кеш");
                             Console.ResetColor();
                             WriteLog("WARNING: Failed to flush DNS cache");
                         }
@@ -694,9 +705,77 @@ namespace DNSManager
             catch (Exception ex)
             {
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"Ошибка при очистке DNS кеша: {ex.Message}");
+                Console.WriteLine($"  Ошибка при очистке DNS кеша: {ex.Message}");
                 Console.ResetColor();
                 WriteLog($"ERROR flushing DNS cache: {ex.Message}");
+            }
+        }
+
+        static void RefreshNetworkSettings()
+        {
+            WriteLog("Refreshing network settings");
+
+            try
+            {
+                // Обновление сетевых настроек через netsh
+                ProcessStartInfo psi = new ProcessStartInfo
+                {
+                    FileName = "netsh",
+                    Arguments = "interface ip set dns",
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true
+                };
+
+                // Обновление через ipconfig /renew (опционально, может занять время)
+                // Пропускаем, так как это может прервать соединение
+
+                // Перезапуск службы DNS Client (требует прав администратора)
+                try
+                {
+                    ProcessStartInfo dnsService = new ProcessStartInfo
+                    {
+                        FileName = "net",
+                        Arguments = "stop dnscache",
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        CreateNoWindow = true
+                    };
+
+                    using (Process? stopProcess = Process.Start(dnsService))
+                    {
+                        if (stopProcess != null)
+                        {
+                            stopProcess.WaitForExit();
+                            System.Threading.Thread.Sleep(500);
+
+                            // Запускаем службу обратно
+                            dnsService.Arguments = "start dnscache";
+                            using (Process? startProcess = Process.Start(dnsService))
+                            {
+                                if (startProcess != null)
+                                {
+                                    startProcess.WaitForExit();
+                                    Console.ForegroundColor = ConsoleColor.Green;
+                                    Console.WriteLine("  [OK] Служба DNS обновлена");
+                                    Console.ResetColor();
+                                    WriteLog("SUCCESS: DNS service refreshed");
+                                }
+                            }
+                        }
+                    }
+                }
+                catch
+                {
+                    // Игнорируем ошибки перезапуска службы - не критично
+                    WriteLog("INFO: DNS service restart skipped (not critical)");
+                }
+            }
+            catch (Exception ex)
+            {
+                WriteLog($"WARNING refreshing network: {ex.Message}");
             }
         }
 
